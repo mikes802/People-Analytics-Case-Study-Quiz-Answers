@@ -22,6 +22,8 @@ Among other SQL techniques, I employed the following in order to find the requir
 
 ## Table of Contents
 1. [Quiz #1](#quiz-1)
+2. [Quiz #2](#quiz-2)
+3. [Quiz #3](#quiz-3)
 
 ## [Quiz #1](#table-of-contents)
 > 1. What is the full name of the employee with the highest salary?
@@ -261,3 +263,398 @@ LIMIT 1;
 | department_tenure                                                                                          | employee_count | total_employees |
 |------------------------------------------------------------------------------------------------------------|----------------|-----------------|
 | { "years": 19, "months": 8, "days": 3, "hours": 14, "minutes": 18, "seconds": 47, "milliseconds": 95.924 } | 9              | 240124          |
+
+## [Quiz #2](#table-of-contents)
+> 1. How many employees have left the company? Hint: You may want to use the `expiry_date` and `event_order` columns from the `mv_employees.historic_employee_records` view.
+```sql
+SELECT
+  COUNT(DISTINCT employee_id) AS employee_churn_count
+FROM mv_employees.historic_employee_records
+WHERE event_order = 1
+  AND expiry_date <> '9999-01-01';
+```
+| employee_churn_count |
+|----------------------|
+| 59910                |
+
+> 2. What percentage of churn employees were male?
+```sql
+  SELECT
+    gender,
+    COUNT(*) AS gender_churn,
+    SUM(COUNT(*)) OVER () AS total_churn,
+    ROUND(100 * COUNT(*) / SUM(COUNT(*)) OVER ()::NUMERIC) AS churn_perc
+  FROM mv_employees.historic_employee_records
+  WHERE event_order = 1
+    AND expiry_date <> '9999-01-01'
+  GROUP BY gender
+  ```
+| gender | gender_churn | total_churn | churn_perc |
+|--------|--------------|-------------|------------|
+| M      | 35864        | 59910       | 60         |
+| F      | 24046        | 59910       | 40         |
+
+I could also put the above in a CTE and just capture the data for males:
+```sql
+WITH cte_1 AS (
+  SELECT
+    gender,
+    COUNT(*) AS gender_churn,
+    SUM(COUNT(*)) OVER () AS total_churn,
+    ROUND(100 * COUNT(*) / SUM(COUNT(*)) OVER ()::NUMERIC) AS churn_perc
+  FROM mv_employees.historic_employee_records
+  WHERE event_order = 1
+    AND expiry_date <> '9999-01-01'
+  GROUP BY gender
+)
+SELECT *
+FROM cte_1
+WHERE gender = 'M';
+```
+| gender | gender_churn | total_churn | churn_perc |
+|--------|--------------|-------------|------------|
+| M      | 35864        | 59910       | 60         |
+
+> 3. Which title had the most churn?
+```sql
+SELECT
+  title,
+  COUNT(DISTINCT employee_id) AS employee_churn_count
+FROM mv_employees.historic_employee_records
+WHERE event_order = 1
+  AND expiry_date <> '9999-01-01'
+GROUP BY title
+ORDER BY employee_churn_count DESC
+LIMIT 1;
+```
+| title    | employee_churn_count |
+|----------|----------------------|
+| Engineer | 16320                |
+
+> 4. Which department had the most churn?
+```sql
+SELECT
+  department,
+  COUNT(DISTINCT employee_id) AS employee_churn_count
+FROM mv_employees.historic_employee_records
+WHERE event_order = 1
+  AND expiry_date <> '9999-01-01'
+GROUP BY department
+ORDER BY employee_churn_count DESC
+LIMIT 1;
+```
+| department  | employee_churn_count |
+|-------------|----------------------|
+| Development | 15578                |
+
+> 5. Which year had the most churn?
+```sql
+SELECT
+  DATE_PART('year', expiry_date) AS churn_year,
+  COUNT(DISTINCT employee_id) AS employee_churn_count
+FROM mv_employees.historic_employee_records
+WHERE event_order = 1
+  AND expiry_date <> '9999-01-01'
+GROUP BY churn_year
+ORDER BY employee_churn_count DESC
+LIMIT 1;
+```
+| churn_year | employee_churn_count |
+|------------|----------------------|
+| 2018       | 7610                 |
+
+> 6. What was the average salary for each employee who has left the company rounded to the nearest integer?
+```sql
+SELECT
+  ROUND(AVG(salary)) AS avg_salary
+FROM mv_employees.historic_employee_records
+WHERE event_order = 1
+  AND expiry_date <> '9999-01-01';
+```
+| avg_salary |
+|------------|
+| 61577      |
+
+> 7. What was the median total company tenure for each churn employee just bfore they left?
+```sql
+SELECT
+  ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY company_tenure_years)) AS median_comp_tenure
+FROM mv_employees.historic_employee_records
+WHERE event_order = 1
+  AND expiry_date <> '9999-01-01';
+```
+| median_comp_tenure |
+|--------------------|
+| 15                 |
+
+> 8. On average, how many different titles did each churn employee hold rounded to 1 decimal place?
+```sql
+WITH cte_1 AS (
+  SELECT
+    employee_id
+  FROM mv_employees.historic_employee_records
+  WHERE event_order = 1
+    AND expiry_date <> '9999-01-01'
+),
+cte_2 AS (
+  SELECT
+    SUM 
+      (CASE
+        WHEN event_name = 'Title Change' THEN 1
+        ELSE 0
+      END) + 1 AS title_change_count
+  FROM mv_employees.historic_employee_records a 
+  INNER JOIN cte_1
+    ON a.employee_id = cte_1.employee_id
+  GROUP BY cte_1.employee_id
+)
+SELECT 
+  ROUND(AVG(title_change_count), 1) AS avg_title_count_churn
+FROM cte_2;
+```
+| avg_title_count_churn |
+|-----------------------|
+| 1.2                   |
+
+> 9. What was the average last pay increase for churn employees?
+```sql
+WITH cte_1 AS (
+  SELECT
+    employee_id
+  FROM mv_employees.historic_employee_records
+  WHERE event_order = 1
+    AND expiry_date <> '9999-01-01'
+),
+cte_2 AS (
+  SELECT
+    employee_id,
+    salary_amount_change,
+    ROW_NUMBER() OVER (
+      PARTITION BY employee_id
+      ORDER BY event_order
+    ) AS _rank
+  FROM mv_employees.historic_employee_records a 
+  WHERE EXISTS (
+    SELECT 1
+    FROM cte_1
+    WHERE a.employee_id = cte_1.employee_id
+  )
+  AND event_name = 'Salary Increase'
+)
+SELECT
+  ROUND(AVG(salary_amount_change)) AS avg_last_pay_inc_churn
+FROM cte_2
+WHERE _rank = 1;
+```
+| avg_last_pay_inc_churn |
+|------------------------|
+| 2250                   |
+
+> 10. What percentage of churn employees had a pay decrease event in their last 5 events?
+```sql
+WITH cte_1 AS (
+  SELECT
+    employee_id
+  FROM mv_employees.historic_employee_records
+  WHERE event_order = 1
+    AND expiry_date <> '9999-01-01'
+),
+cte_2 AS (
+  SELECT
+    COUNT(DISTINCT employee_id) AS churn_w_dec_event
+  FROM mv_employees.historic_employee_records a 
+  WHERE EXISTS (
+    SELECT 1
+    FROM cte_1
+    WHERE a.employee_id = cte_1.employee_id
+  )
+  AND event_order <= 5
+  AND event_name = 'Salary Decrease'
+) 
+SELECT
+  COUNT(DISTINCT a.employee_id) AS total_churn,
+  b.churn_w_dec_event,
+  ROUND(100 * b.churn_w_dec_event / COUNT(DISTINCT a.employee_id)::NUMERIC) AS _percent
+FROM cte_1 a
+CROSS JOIN cte_2 b
+GROUP BY b.churn_w_dec_event;
+```
+| total_churn | churn_w_dec_event | _percent |
+|-------------|-------------------|----------|
+| 59910       | 14328             | 24       |
+
+## [Quiz #3](#table-of-contents)
+> 1. How many managers are there currently in the company?
+```sql
+SELECT
+  COUNT(DISTINCT employee_id) AS manager_count
+FROM mv_employees.current_employee_snapshot
+WHERE title = 'Manager';
+```
+| manager_count |
+|---------------|
+| 9             |
+
+> 2. How many employees have ever been a manager?
+```sql
+SELECT
+  COUNT(title) AS historical_management_count
+FROM mv_employees.title
+WHERE title = 'Manager';
+```
+| historical_management_count |
+|-----------------------------|
+| 24                          |
+
+> 3. On average - how long did it take for an employee to first become a manager from their the date they were originally hired in days?
+```sql
+WITH cte_1 AS (
+  SELECT
+    t1.id AS employee_id,
+    t2.title,
+    t1.hire_date,
+    t2.from_date,
+    t2.from_date - t1.hire_date AS _age 
+  FROM mv_employees.employee AS t1 
+  INNER JOIN mv_employees.title AS t2 
+    ON t1.id = t2.employee_id
+  WHERE t2.title = 'Manager'
+)
+SELECT
+  ROUND(AVG(_age)) AS avg_days_to_manager
+FROM cte_1;
+```
+| avg_days_to_manager |
+|---------------------|
+| 909                 |
+
+> 4. What was the most common titles that managers had just before before they became a manager?
+```sql
+WITH cte_1 AS (
+  SELECT *,
+    LAG(title) OVER (
+      PARTITION BY employee_id
+      ORDER BY from_date) AS previous_title
+  FROM mv_employees.title
+)
+SELECT
+  previous_title,
+  COUNT(*) AS previous_title_count
+FROM cte_1
+WHERE title = 'Manager'
+  AND previous_title IS NOT NULL
+GROUP BY previous_title
+ORDER BY previous_title_count DESC
+LIMIT 1;
+```
+| previous_title | previous_title_count |
+|----------------|----------------------|
+| Senior Staff   | 7                    |
+
+> 5. How many managers were first hired by the company as a manager?
+```sql
+WITH cte_1 AS (
+  SELECT *,
+    LAG(title) OVER (
+      PARTITION BY employee_id
+      ORDER BY from_date) AS previous_title
+  FROM mv_employees.title
+)
+SELECT
+  COUNT(*) AS hired_as_manager
+FROM cte_1
+WHERE title = 'Manager'
+  AND previous_title IS NULL
+GROUP BY previous_title;
+```
+| hired_as_manager |
+|------------------|
+| 9                |
+
+> 6. On average - how much more do current managers make on average compared to all other employees rounded to the nearest dollar?
+
+I was stuck on this one attempting to use the `mv_employees.tenure_benchmark` table. I learned this lesson: DO NOT try to average the averages!
+```sql
+WITH salary_calc AS (
+  SELECT
+    AVG(salary) AS avg_salary_not_manager
+  FROM mv_employees.current_employee_snapshot
+  WHERE title <> 'Manager'
+)
+SELECT
+  AVG(t1.salary) AS avg_salary_manager,
+  t2.avg_salary_not_manager,
+  ROUND(AVG(t1.salary) - t2.avg_salary_not_manager) AS _difference
+FROM mv_employees.current_employee_snapshot AS t1 
+CROSS JOIN salary_calc AS t2
+WHERE t1.title = 'Manager'
+GROUP BY t2.avg_salary_not_manager;
+```
+| avg_salary_manager | avg_salary_not_manager | _difference |
+|--------------------|------------------------|-------------|
+| 77723.666666666667 | 72012.021781229827     | 5712        |
+
+> 7. Which current manager has the most employees in their department?
+```sql
+WITH employee_count_table AS (
+  SELECT
+    department,
+    COUNT(*) AS employee_count,
+-- Included window SUM to verify total employee count of 240124.
+    SUM(COUNT(*)) OVER () AS total_employee_count
+  FROM mv_employees.current_employee_snapshot
+  GROUP BY department 
+  ORDER BY employee_count DESC
+  LIMIT 1
+)
+SELECT
+  employee_count_table.department,
+  employee_count_table.employee_count,
+  mv_employees.employee.first_name || ' ' || mv_employees.employee.last_name AS manager_name
+FROM employee_count_table
+INNER JOIN mv_employees.department
+  ON employee_count_table.department = mv_employees.department.dept_name
+INNER JOIN mv_employees.department_manager
+  ON mv_employees.department.id = mv_employees.department_manager.department_id
+INNER JOIN mv_employees.employee
+  ON mv_employees.department_manager.employee_id = mv_employees.employee.id
+WHERE mv_employees.department_manager.to_date = '9999-01-01';
+```
+| department  | employee_count | manager_name  |
+|-------------|----------------|---------------|
+| Development | 61386          | Leon DasSarma |
+
+I realized later that `manager` was already joined on to this table, resulting in a much simpler query. There were two versions of this table and I was looking at the wrong one to begin with. This teaches me to know my tables!
+```sql
+SELECT 
+  manager,
+  COUNT(*) AS employee_count
+FROM mv_employees.current_employee_snapshot
+GROUP BY manager
+ORDER BY employee_count DESC
+LIMIT 1;
+```
+| manager       | employee_count |
+|---------------|----------------|
+| Leon DasSarma | 61386          |
+
+> 8. What is the difference in employee count between the 3rd and 4th ranking departments by size?
+```sql
+WITH rank_table AS (
+  SELECT
+    department,
+    COUNT(*) AS employee_count,
+    ROW_NUMBER() OVER (
+      ORDER BY COUNT(*) DESC
+    )
+  FROM mv_employees.current_employee_snapshot
+  GROUP BY department
+)
+SELECT
+  MAX(CASE WHEN row_number = 3 THEN employee_count ELSE NULL END) -
+  MAX(CASE WHEN row_number = 4 THEN employee_count ELSE NULL END) AS _diff
+FROM rank_table;
+```
+| _diff |
+|-------|
+| 20132 |
