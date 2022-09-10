@@ -1,6 +1,6 @@
 # People Analytics Case Study Quiz Answers
 The following are my solutions to the People Analytics Case Study quiz questions in 
-[Danny Ma's Serious SQL course](https://www.datawithdanny.com/ "Data With Danny"). There are three quizzes in total with a total of 29 questions. I have completed all three quizzes.
+[Danny Ma's Serious SQL course](https://www.datawithdanny.com/ "Data With Danny"). There are three quizzes with a total of 29 questions. I have completed all three quizzes.
 <br/>
 <br/>
 The tables used to solve the questions come from a dataset (`employees`) that was copied as a new schema with materialized views (`mv_employees`) and containing the same indexes as the original dataset. This was because there was an error in the date fields of the original dataset that needed to be corrected prior to data analysis.
