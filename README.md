@@ -1,18 +1,20 @@
 # People Analytics Case Study Quiz Answers
 The following are my solutions to the People Analytics Case Study quiz questions in 
-[Danny Ma's Serious SQL course](https://www.datawithdanny.com/ "Data With Danny"). There are three quizzes in total; I have completed Quiz #1 so far, which has eleven questions.
+[Danny Ma's Serious SQL course](https://www.datawithdanny.com/ "Data With Danny"). There are three quizzes in total with a total of 29 questions. I have completed all three quizzes.
 <br/>
 <br/>
 The tables used to solve the questions come from a dataset (`employees`) that was copied as a new schema with materialized views (`mv_employees`) and containing the same indexes as the original dataset. This was because there was an error in the date fields of the original dataset that needed to be corrected prior to data analysis.
 <br/>
 <br/>
-For Quiz #1, among other SQL techniques, I employed the following in order to find the required data:
+Among other SQL techniques, I employed the following in order to find the required data in the quizzes:
 <br/>
 - `WHERE` and `ORDER BY` to filter and sort data
 - aggregate functions with `GROUP BY` to summarize data
 - window functions and a 1/0 flag with `CASE WHEN` to capture specific data about a particular group within a dataset
 - `MAX` with `CASE WHEN` to transpose data to a wide format in order to `CONCAT` for a more readable output
 - `JOIN` to join a table back onto itself after creating the join criteria in a CTE using `LIMIT`
+- window functions in a `SELECT` expression to find percentages
+- `DATE_PART` to extract the year from a date type to aggregate data by year
 
 ## Quiz #1
 > 1. What is the full name of the employee with the highest salary?
