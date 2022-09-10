@@ -6,7 +6,7 @@ The following are my solutions to the People Analytics Case Study quiz questions
 The tables used to solve the questions come from a dataset (`employees`) that was copied as a new schema with materialized views (`mv_employees`) and containing the same indexes as the original dataset. This was because there was an error in the date fields of the original dataset that needed to be corrected prior to data analysis.
 <br/>
 <br/>
-Among other SQL techniques, I employed the following in order to find the required data in the quizzes:
+Among other SQL techniques, I employed the following to find the required data in the quizzes:
 <br/>
 - `WHERE` and `ORDER BY` to filter and sort data
 - aggregate functions with `GROUP BY` to summarize data
