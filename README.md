@@ -20,6 +20,9 @@ Among other SQL techniques, I employed the following in order to find the requir
 - `WHERE EXISTS` as an anti-join to filter out rows associated with primary keys that do not match the required criteria
 - `LAG` window function to extract data that occurs just prior to a target row
 
+## Table of Contents
+1. [Quiz #1](#quiz_1)
+
 ## Quiz #1
 > 1. What is the full name of the employee with the highest salary?
 
