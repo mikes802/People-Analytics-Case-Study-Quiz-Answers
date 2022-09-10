@@ -15,6 +15,10 @@ Among other SQL techniques, I employed the following in order to find the requir
 - `JOIN` to join a table back onto itself after creating the join criteria in a CTE using `LIMIT`
 - window functions in a `SELECT` expression to find percentages
 - `DATE_PART` to extract the year from a date type to aggregate data by year
+- `PERCENTILE_CONT` to find the median of an ordered list of values
+- `ROW_NUMBER` window function to rank an ordered list of values so as to filter by the first value
+- `WHERE EXISTS` as an anti-join to filter out rows associated with primary keys that do not match the required criteria
+- `LAG` window function to extract data that occurs just prior to a target row
 
 ## Quiz #1
 > 1. What is the full name of the employee with the highest salary?
