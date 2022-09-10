@@ -21,9 +21,9 @@ Among other SQL techniques, I employed the following in order to find the requir
 - `LAG` window function to extract data that occurs just prior to a target row
 
 ## Table of Contents
-1. [Quiz #1](#quiz_1)
+1. [Quiz #1](#quiz-1)
 
-## Quiz #1
+## [Quiz #1](#table-of-contents)
 > 1. What is the full name of the employee with the highest salary?
 
 ```sql
